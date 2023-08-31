@@ -11,7 +11,7 @@ first two spots empty
 <<<#
 [
     [>.<<<] print every other descending every digit
-    >#|> print separator 0 and move back to 1st digit flag
+    >>
     [
         -> remove flag_i and go to digit_i
         [ if d_i was greater than 0
@@ -40,5 +40,6 @@ first two spots empty
         ]
         +>> f_i=1 go to next i
     ]
+    | clear the screen/new line
     <<
 ]
