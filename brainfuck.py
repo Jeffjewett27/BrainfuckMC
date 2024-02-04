@@ -1,5 +1,6 @@
 import argparse
 import re
+from engine import BfEngine
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-p", "--program", help="Brainfuck program text")
@@ -41,6 +42,8 @@ maxcommands = 2000
 numskipped = 0
 output = ''
 cellsize = int(args.max or 9)
+
+# engine = BfEngine(program, input, maxCommands=maxcommands, outputMethod=0)
 
 def printmem(msg = ''):
     if len(msg) == 0:

@@ -1,4 +1,4 @@
-#H=1 #D=7 #L=0 #B=1 #C=2 #C'=3 #T=4 E=5 #R=6
+H=1; D=7; L=0; B=1; C=2; C'=3; T=4; E=5; R=6
 H is the size of the header
 D is the block size per digit place
 Inside the block here are the digit offsets

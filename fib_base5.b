@@ -1,10 +1,10 @@
 >>+>+                                Initialize: linefeed=0; A=1; T=1; B=0
 [   #                                 Main loop: each iteration outputs one Fibonacci number from B and computes the next one (ApB)
-    [                                Output loop: outputs one digit per iteration
+    |[                                Output loop: outputs one digit per iteration
         >.<                          Output ASCII for this digit of B
         +<<<                         Restore T=1; and go left to the next T marker; if any 
     ]                                End of output loop; go back to output next digit; or exit 
-    >|>>                             All digits of B have been output  Output linefeed (ASCII code 10) and go back to the leftmost T marker 
+    >>>                             All digits of B have been output  Output linefeed (ASCII code 10) and go back to the leftmost T marker 
     [                                Update loop: each iteration updates one digit of A and B (setting A to B and B to ApB; with carries)
         [-]                          Clear T to 0 (it was either 1 or 2 before)
         <[>+<-]                      Move this digit of A to empty T cell for the moment 
