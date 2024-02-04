@@ -6,6 +6,20 @@ from collections import deque
 TEXT_SIZE_FACTOR = 0.7
 
 class Tape(VGroup):
+    @staticmethod
+    def labelUpdater(tape, label, idx):
+        rawIdx = tape.getArrayIdxFromLabelIdx(idx)
+        value = str(tape.array[rawIdx]) if rawIdx < len(tape.array) else ''
+        # if label.text != value:
+        #     label.become(Text(value, font_size=DEFAULT_FONT_SIZE * self.boxScale))
+        lcolor = tape.labelColors.get(value, WHITE)
+        if tape.arrowScroll.get_value() == rawIdx:
+            lcolor = tape.pointerColor
+        label.set_color(lcolor)
+        label.move_to(RIGHT * (rawIdx-tape.scroll.get_value()-tape.offsetX) * tape.boxScale + DOWN * tape.offsetY)
+        if rawIdx < 0 or rawIdx >= len(tape.array):
+            label.move_to(RIGHT * 100)
+
     def __init__(self, array, numboxes, offsetY = 0, pointerQueue=None):
         super().__init__()
         self.array = array
@@ -36,27 +50,13 @@ class Tape(VGroup):
             if rawIdx < 0 or rawIdx >= len(self.array):
                 box.move_to(RIGHT * 100)
 
-        def labelUpdater(label, idx):
-            minIdx = math.floor(self.scroll.get_value())
-            rawIdx = minIdx + idx - (minIdx % self.numboxes)
-            if idx < (minIdx % self.numboxes):
-                rawIdx += self.numboxes
-            value = str(self.array[rawIdx]) if rawIdx < len(self.array) else ''
-            if label.text != value:
-                label.become(Text(value, font_size=DEFAULT_FONT_SIZE * self.boxScale))
-            lcolor = self.labelColors.get(value, WHITE)
-            if self.arrowScroll.get_value() == rawIdx:
-                lcolor = self.pointerColor
-            label.set_color(lcolor)
-            label.move_to(RIGHT * (rawIdx-self.scroll.get_value()-self.offsetX) * self.boxScale + DOWN * self.offsetY)
-            if rawIdx < 0:
-                label.move_to(RIGHT * 100)
-
+        self.labels = []
         for i in range(min(self.numboxes, len(self.array))):
             box = Square(side_length=self.boxScale)
             box.add_updater(lambda box, idx=i: boxUpdater(box, idx))
-            label = Text(text='0', font_size=DEFAULT_FONT_SIZE * self.boxScale)
-            label.add_updater(lambda label, idx=i: labelUpdater(label, idx))
+            label = Text(text=str(array[i]), font_size=DEFAULT_FONT_SIZE * self.boxScale)
+            self.labels.append(label)
+            label.add_updater(lambda label, idx=i: Tape.labelUpdater(self, label, idx))
             self.add(box, label)
 
         self.arrowScroll = ValueTracker(0)
@@ -110,6 +110,7 @@ class Tape(VGroup):
         return scrollPositions
 
     def moveArrow(self, pos):
+        self.updateText()
         anims = [
             self.arrowScroll.animate.set_value(pos),
         ]
@@ -120,6 +121,28 @@ class Tape(VGroup):
         return AnimationGroup(
             *anims
         )
+    
+    def getArrayIdxFromLabelIdx(self, labelIdx):
+        minIdx = math.floor(self.scroll.get_value())
+        arrayIdx = minIdx + labelIdx - (minIdx % self.numboxes)
+        if labelIdx < (minIdx % self.numboxes):
+            arrayIdx += self.numboxes
+        return arrayIdx
+    
+    def updateText(self):
+        for idx, label in enumerate(self.labels):
+            arrayIdx = self.getArrayIdxFromLabelIdx(idx)
+            arrayValue = str(self.array[arrayIdx]) if arrayIdx < len(self.array) else ''
+            if arrayValue != label.text:
+                newLabel = Text(arrayValue, font_size=DEFAULT_FONT_SIZE * self.boxScale).move_to(label).set_color(label.color)
+                newLabel.add_updater(lambda label, idx=idx: Tape.labelUpdater(self, label, idx))
+                # label.become(newLabel)
+                self.add(newLabel)
+                self.remove(label)
+                # Tape.labelUpdater(self, label, idx)
+                self.labels[idx] = newLabel
+                # self.remove(label)
+
     
     def setColors(self, colors):
         self.labelColors = colors
@@ -213,10 +236,12 @@ class BrainfuckAnim(Scene):
 
     def addition(self):
         self.memTape.pointerColor = '#5cfa4d'
+        self.memTape.updateText()
         self.wait(0.1)
 
     def subtraction(self):
         self.memTape.pointerColor = '#f7350a'
+        self.memTape.updateText()
         self.wait(0.1)
 
     def enable(self):
@@ -232,6 +257,7 @@ class BrainfuckAnim(Scene):
         text.move_to(self.inputText.topLeft)
         self.play(text.animate.shift(self.memTape.absoluteArrowPosition() - self.inputText.topLeft), run_time=0.5)
         self.remove(text)
+        self.memTape.updateText()
 
     def printOutput(self, output):
         self.memTape.pointerColor = self.memTape.defaultPointerColor

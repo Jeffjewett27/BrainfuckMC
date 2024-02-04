@@ -1,7 +1,7 @@
 import argparse
 import re
 
-from brainfuck_anim import BrainfuckAnim
+from brainfuck_anim import BrainfuckAnim, DummyAnimation
 
 class StdOut:
     def __init__(self, method = 0) -> None:
@@ -43,6 +43,7 @@ class BfEngine:
         parser.add_argument("-d", "--inputfile", help="Input file")
         parser.add_argument("-l", "--log", help="debug statements", action='store_true')
         parser.add_argument("-m", "--max", help="max num instructions")
+        parser.add_argument("-w", "--wrap", help="whether can underflow and overflow", action='store_true')
         parser.add_argument("-a", "--animate", help="do animation", action='store_true')
         args = parser.parse_args()
 
@@ -62,7 +63,7 @@ class BfEngine:
 
         return args
 
-    def __init__(self, args, animation = None, outputMethod = 0) -> None:
+    def __init__(self, args, animation = DummyAnimation(), outputMethod = 0) -> None:
         
         self.instructions = args.program
         self.input = args.input + ('0'*1000)
@@ -77,10 +78,16 @@ class BfEngine:
         self.numCommands = 0
         self.maxCommands = int(args.max or 10000)
         self.cellMax = 9
+        self.wrap = args.wrap
         self.animation = animation
 
     def isFinished(self):
         return self.instP >= len(self.instructions) or self.numCommands > self.maxCommands    
+    
+    def handleWrap(self, value):
+        if self.wrap:
+            return (value + self.cellMax + 1) % (self.cellMax + 1)
+        return max(0, min(value, self.cellMax))
 
     def tick(self):
         if self.isFinished():
@@ -106,10 +113,12 @@ class BfEngine:
                     self.stack = 0
         elif self.active:
             if inst == BfEngine.INCREMENT:
-                self.memory[self.memP] = min(self.cellMax, self.memory[self.memP] + 1)
+                # self.memory[self.memP] = min(self.cellMax, self.memory[self.memP] + 1)
+                self.memory[self.memP] = self.handleWrap(self.memory[self.memP] + 1)
                 self.animation.addition()
             elif inst == BfEngine.DECREMENT:
-                self.memory[self.memP] = max(0, self.memory[self.memP] - 1)
+                # self.memory[self.memP] = max(0, self.memory[self.memP] - 1)
+                self.memory[self.memP] = self.handleWrap(self.memory[self.memP] - 1)
                 self.animation.subtraction()
             elif inst == BfEngine.SHIFT_UP:
                 self.memP += 1
@@ -121,8 +130,8 @@ class BfEngine:
                 self.output.print(self.memory[self.memP])
                 self.animation.printOutput(self.memory[self.memP])
             elif inst == BfEngine.READ:
-                self.animation.readInput(self.inpP)
                 self.memory[self.memP] = int(self.input[self.inpP])
+                self.animation.readInput(self.inpP)
                 self.inpP += 1
             elif inst == BfEngine.NEWLINE:
                 self.output.print('\n')
