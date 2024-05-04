@@ -3,7 +3,7 @@ import re
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-b", "--brainfile", help="Brainfuck program file")
-parser.add_argument("-r", "--row", action='store_true')
+parser.add_argument("-r", "--row", action='store_true', help="If specified, will print in rows, how the blocks would be placed in game.")
 args = parser.parse_args()
 
 with open(args.brainfile, "r") as f:

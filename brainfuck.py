@@ -1,122 +1,147 @@
-import argparse
-import re
-from engine import BfEngine
-parser = argparse.ArgumentParser()
+from bfconfig import BfConfig
 
-parser.add_argument("-p", "--program", help="Brainfuck program text")
-parser.add_argument("-b", "--brainfile", help="Brainfuck program file")
-parser.add_argument("-i", "--input", help="Input digit string")
-parser.add_argument("-d", "--inputfile", help="Input file")
-parser.add_argument("-l", "--log", help="debug statements", action='store_true')
-parser.add_argument("-m", "--max", help="max cell value")
-args = parser.parse_args()
+class StdOut:
+    def __init__(self, method = 0) -> None:
+        self.method = method
+        self.output = ''
 
-program = args.program
-
-if program is None:
-    with open(args.brainfile, "r") as f:
-        program = f.read()
-
-input = args.input or ''
-
-if input is None:
-    with open(args.inputfile, "r") as f:
-        input = f.read()
-
-program = re.sub('[^\.,\+\-<>|#\[\]&]', '', program)
-input = re.sub('[^0-9]', '', input)
-
-print('Program (len ' + str(len(program)) + '): ' + program)
-print('Input: ' + input)
-
-input += '0' * 100
-memsize = 1000
-maxmemsize = 100000
-mem = [0] * memsize
-p = 0
-inp = 0
-com = 0
-stack = []
-numcommands = 0
-maxcommands = 2000
-numskipped = 0
-output = ''
-cellsize = int(args.max or 9)
-
-# engine = BfEngine(program, input, maxCommands=maxcommands, outputMethod=0)
-
-def printmem(msg = ''):
-    if len(msg) == 0:
-        msg = 'Memory'
-    print(f'{msg}: ', end='')
-    print(mem[:40])
-
-while com < len(program):
-    c = program[com]
-    if c == '+':
-        mem[p] = mem[p]+1
-        if mem[p] > cellsize:
-            if args.log:
-                printmem('cellsize')
-            mem[p] = cellsize
-    elif c == '-':
-        mem[p] = max(mem[p]-1, 0)
-    elif c == '>':
-        p += 1
-        if p == len(mem):
-            mem.append(0)
-        if p > maxmemsize:
-            raise Exception("maximum memory reached")
-    elif c == '<':
-        p = max(p-1, 0)
-    elif c == '.':
-        output += str(mem[p])
-    elif c == ',':
-        mem[p] = int(input[inp])
-        inp += 1
-    elif c == '[':
-        if mem[p] > 0:
-            stack.append(com)
-        else:
-            oldcom = com
-            depth = 1
-            while depth > 0:
-                com += 1
-                if com >= len(program):
-                    raise Exception("Unmatched [ at command " + str(oldcom))
-                c = program[com]
-                if c == '[':
-                    depth += 1
-                elif c == ']':
-                    depth -= 1
-            numskipped += com - oldcom
-    elif c == ']':
-        if len(stack) == 0:
-            raise Exception("Unmatched ] at command " + str(com) + ", total: " + str(numcommands))
-        if mem[p] > 0:
-            oldcom = com
-            com = stack[-1]
-            numskipped += oldcom - com
-        else:
-            oldcom = stack.pop()
-    elif c == '|':
-        # new line/clear output
-        output += '\n'
-    elif c == '&' and args.log is not None:
-        print('')
-        print('breakpoint reached')
-    elif c == '#' and args.log:
-        printmem()
-    com += 1
-    numcommands += 1
-    if numcommands > maxcommands:
-        print(output)
-        raise Exception("Exceeded max time")
-
-print(f'Output: {output}')
-
-if args.log:
-    print('Memory: ', end='')
-    print(mem[:40])
-print('Finished with ' + str(numcommands) + ' commands (' + str(numskipped) + ' skipped)')
+    def print(self, val):
+        self.output += str(val)
+        if self.method == 0:
+            print(val, end='')
             
+
+    def final(self):
+        if self.method == 2:
+            return
+        if self.method == 1:
+            print(self.output, end='')
+        print('')
+
+class BfEngine:
+    OPEN_LOOP = '['
+    CLOSE_LOOP = ']'
+    INCREMENT = '+'
+    DECREMENT = '-'
+    SHIFT_UP = '>'
+    SHIFT_DOWN = '<'
+    PRINT = '.'
+    READ = ','
+    NEWLINE = '|'
+    DEBUG = '#'
+
+    def __init__(self, args, animation = None, outputMethod = 0) -> None:
+        
+        self.instructions = args.program
+        self.input = args.input + ('0'*1000)
+        self.memory = [0] * 1000
+        self.instP = 0
+        self.inpP = 0
+        self.memP = 0
+        self.stack = 0
+        self.dir = 1
+        self.active = True
+        self.output = StdOut(outputMethod)
+        self.numCommands = 0
+        self.maxCommands = int(args.max or 10000)
+        self.cellMax = 9
+        self.wrap = args.wrap
+        self.animation = animation
+
+    def isFinished(self):
+        return self.instP >= len(self.instructions) or self.numCommands > self.maxCommands    
+    
+    def handleWrap(self, value):
+        if self.wrap:
+            return (value + self.cellMax + 1) % (self.cellMax + 1)
+        return max(0, min(value, self.cellMax))
+
+    def tick(self):
+        if self.isFinished():
+            return
+        inst = self.instructions[self.instP]
+        if self.animation:
+            self.animation.instruction(self.instP)
+        if inst == BfEngine.OPEN_LOOP:
+            self.stack += 1
+            if self.active:
+                if self.memory[self.memP] == 0:
+                    self.active = False
+                    if self.animation:
+                        self.animation.disable()
+                else:
+                    self.stack = 0
+        elif inst == BfEngine.CLOSE_LOOP:
+            self.stack -= 1
+            if self.active:
+                if self.memory[self.memP] != 0:
+                    self.dir = -1
+                    self.active = False
+                    if self.animation:
+                        self.animation.disable()
+                else:
+                    self.stack = 0
+        elif self.active:
+            if inst == BfEngine.INCREMENT:
+                # self.memory[self.memP] = min(self.cellMax, self.memory[self.memP] + 1)
+                self.memory[self.memP] = self.handleWrap(self.memory[self.memP] + 1)
+                if self.animation:
+                    self.animation.addition()
+            elif inst == BfEngine.DECREMENT:
+                # self.memory[self.memP] = max(0, self.memory[self.memP] - 1)
+                self.memory[self.memP] = self.handleWrap(self.memory[self.memP] - 1)
+                if self.animation:
+                    self.animation.subtraction()
+            elif inst == BfEngine.SHIFT_UP:
+                self.memP += 1
+                if self.animation:
+                    self.animation.shift(self.memP)
+            elif inst == BfEngine.SHIFT_DOWN:
+                self.memP = max(0, self.memP - 1)
+                if self.animation:
+                    self.animation.shift(self.memP)
+            elif inst == BfEngine.PRINT:
+                self.output.print(self.memory[self.memP])
+                if self.animation:
+                    self.animation.printOutput(self.memory[self.memP])
+            elif inst == BfEngine.READ:
+                self.memory[self.memP] = int(self.input[self.inpP])
+                if self.animation:
+                    self.animation.readInput(self.inpP)
+                self.inpP += 1
+            elif inst == BfEngine.NEWLINE:
+                self.output.print('\n')
+            elif inst == BfEngine.DEBUG:
+                self.printmem()
+        if self.stack == 0:
+            self.active = True
+            self.dir = 1
+            if self.animation:
+                self.animation.enable()
+        self.instP += self.dir
+        self.numCommands += 1
+
+    def printmem(self, msg = ''):
+        if len(msg) == 0:
+            msg = 'Memory'
+        print(f'{msg}: ', end='')
+        print(self.memory[:40])
+
+    def run(self):
+        if self.animation:
+            self.animation.start()
+        while not self.isFinished():
+            self.tick()
+        self.output.final()
+        if self.animation:
+            self.animation.end()
+
+if __name__ == "__main__":
+    args = BfConfig.parseConfig()
+    print(f'Executing with {args}')
+    if args.animate:
+        from brainfuck_anim import BrainfuckAnim
+        BrainfuckAnim.doanimation(args)
+    else:
+        engine = BfEngine(args)
+        engine.run()

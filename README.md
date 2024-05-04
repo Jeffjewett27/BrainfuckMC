@@ -1,6 +1,6 @@
 # BrainfuckMC
 
-Project by Jeff Jewett. I built a Minecraft redstone Brainfuck interpreter. It has some quirks compared to regular Brainfuck so I made this companion Python interpreter to test out programs.
+Project by Jeff Jewett. This is a Manim Brainfuck visualization library that I built for the purposes of creating a video about my Minecraft redstone Brainfuck interpreter. It is configurable to handle both standard Brainfuck as well as the quirks of my Minecraft machine.
 
 ## What is Brainfuck?
 
@@ -25,9 +25,23 @@ There are several quirks compared to traditional Brainfuck:
 - No wraparound: Values will be clipped to 0-9. If `+` is executed on a value of `9`, the value will not change.
 - `|` instruction: Because there is no ASCII to print a new line, this provides a newline functionality, or in Minecraft it clears the display.
 
-## brainfuck.py
+## Usage
 
-This is a reimplementation of the BrainfuckMC redstone interpreter in Python. It has some additional debugging features.
+### Configuration
+
+| Argument | Description           |
+|----------|-----------------------|
+| -p PROGRAM, --program PROGRAM | A text string of the brainfuck program |
+| -b FILE, --brainfile FILE | The path of the brainfuck program |
+| -i INPUT, --input INPUT | A string of inputs  |
+| -d FILE, --inputfile FILE | The path of the file that contains an input |
+| -l, --log | If specified, `#` will be interpreted as a memory-dump command |
+| -m MAX, --max MAX | The maximum number of instructions before termination. Can prevent infinite loops |
+| -a, --animate | If specified, will produce a Manim animation. |
+
+### brainfuck.py
+
+This is a Brainfuck interpreter. It has some additional debugging features.
 
 ## mcprint.py
 

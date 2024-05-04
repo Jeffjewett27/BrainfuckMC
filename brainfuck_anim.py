@@ -1,11 +1,12 @@
 from itertools import zip_longest
 import math
 from manim import *
+from manim.mobject.opengl import opengl_compatibility
 from collections import deque
 
 TEXT_SIZE_FACTOR = 0.7
 
-class Tape(VGroup):
+class Tape(VGroup, metaclass=opengl_compatibility.ConvertToOpenGL):
     @staticmethod
     def labelUpdater(tape, label, idx):
         rawIdx = tape.getArrayIdxFromLabelIdx(idx)
@@ -147,7 +148,7 @@ class Tape(VGroup):
     def setColors(self, colors):
         self.labelColors = colors
 
-class InputText(VGroup):
+class InputText(VGroup, metaclass=opengl_compatibility.ConvertToOpenGL):
     def __init__(self, inputArray):
         super().__init__()
         self.topLeft = LEFT * 5 + UP * 3 + DOWN * TEXT_SIZE_FACTOR
@@ -165,7 +166,7 @@ class InputText(VGroup):
         newInput = Text(' '.join(self.inputArray[inpP:inpP+self.displayChars]), font_size=DEFAULT_FONT_SIZE * TEXT_SIZE_FACTOR)
         self.inputValues.become(newInput).next_to(self.topLeft, RIGHT, buff=0)
 
-class OutputText(VGroup):
+class OutputText(VGroup, metaclass=opengl_compatibility.ConvertToOpenGL):
     def __init__(self, outputObj):
         super().__init__()
         self.topRight = RIGHT * 2 + UP * 2.5
@@ -191,20 +192,28 @@ class OutputText(VGroup):
         self.inputValues.become(newInput).next_to(self.topRight, RIGHT, buff=0)
         
 class BrainfuckAnim(Scene):
+    args = None
+    
     @staticmethod
     def doanimation(args):
         BrainfuckAnim.args = args
-        with tempconfig({"quality": "high_quality", "preview": False, "disable_caching": True, "renderer": "opengl"}):
+        with tempconfig({"quality": "high_quality", "preview": False, "disable_caching": False, "renderer": "opengl", "force_window": False, "input_file": "brainfuck_anim.py"}):
             scene = BrainfuckAnim()
             scene.render()
 
     def construct(self):
+        if not BrainfuckAnim.args:
+            from bfconfig import BfConfig
+
+            BrainfuckAnim.args = BfConfig.parseConfig(parseArgs=False)
+            print(f'Executing failsafe with {BrainfuckAnim.args}')
+
         self.memPos = (-5, 1)
         self.boxSize = 0.4
         self.memScroll = 0
         self.instrTime = 0.4
         
-        from engine import BfEngine
+        from brainfuck import BfEngine
         #run the program in advance to predict camera scrolling
         prerun = BfEngine(BrainfuckAnim.args, animation=DummyAnimation(), outputMethod=2)
         prerun.run()
@@ -226,6 +235,8 @@ class BrainfuckAnim(Scene):
         self.instrLabel = Text('Instructions', font_size=DEFAULT_FONT_SIZE * TEXT_SIZE_FACTOR).next_to(DOWN * 1.2 + LEFT * 7, RIGHT)
         self.memLabel = Text('Memory', font_size=DEFAULT_FONT_SIZE * TEXT_SIZE_FACTOR).next_to(UP * 1.2 + LEFT * 7, RIGHT)
         self.add(self.memTape, self.instrTape, self.inputText, self.outputText, self.instrLabel, self.memLabel)
+
+        # self.interactive_embed()
 
     def shift(self, pos):
         self.memTape.pointerColor = self.memTape.defaultPointerColor

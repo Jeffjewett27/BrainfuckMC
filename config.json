@@ -1,0 +1,13 @@
+{
+    "engine": {
+        "wrap": false
+    },
+    "program": {
+        "brainfile": "programs/demo_bf_operations.b",
+        "input": "9"
+    },
+    "execution": {
+        "animate": false,
+        "log": true
+    }
+}
